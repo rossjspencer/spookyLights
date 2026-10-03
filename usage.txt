@@ -1,0 +1,96 @@
+Build commands:
+  sh compile.sh
+    builds the command-line renderer without OpenGL.
+
+  sh compile_GUI.sh
+    builds the OpenGL/GLUT GUI renderer and enables USE_GL automatically. no source editing is required when switching between the two builds.
+
+Base command:
+  ./spookyLights max_depth dispersion cutoff_low cutoff_high num_samples scene_name [options]
+
+Added command-line options:
+  --objects
+    draws circle outlines using their material colours and draws black-hole event horizons.
+
+  --steps
+    forces the ordinary stepwise propagation mode even when the scene has no black hole.
+
+  --movie
+    enables movie-style propagation based on simulated time. in GUI mode, the initial photon packet is prepared but does not start moving until Enter is pressed.
+    once started, each frame advances movieTime by timeBetweenFrames and every active ray travels movieRaySpeed * timeBetweenFrames.
+    physicsStepLength stays independent from the visible frame distance and controls how often gravity is recalculated. movieRaySpeed * timeBetweenFrames must stay above the renderer tolerance so each frame advances by a measurable amount.
+    defaults: timeBetweenFrames = 0.05, movieRaySpeed = 1.0, physicsStepLength = 0.01, movieTrailFade = 0.0.
+    movie mode uses fixed exposure instead of per-frame histogram normalization.
+    when trail fade is enabled, old movie-frame ray pixels are dimmed before the new frame is rendered, which leaves a visible motion trail without changing the simulated ray energy.
+
+  --frame-time X
+    sets timeBetweenFrames, the amount of simulated time between displayed movie frames. X must be positive. default: 0.05.
+    lowering X makes each frame cover less simulated time, so successive frames show more finely spaced points in the same simulation.
+    this controls simulated-time sampling rather than adding a wall-clock delay; gravity still follows physicsStepLength continuously across frame boundaries.
+
+  --movie-speed X
+    sets movieRaySpeed, measured in scene-distance units per unit of simulated time. X must be positive. default: 1.0.
+    distancePerFrame is movieRaySpeed * timeBetweenFrames, so lowering this value is the simplest slow-motion control because the photon packet moves less distance from one displayed frame to the next. A side effect of this is the visible photon segment drawn each frame becomes shorter, but this can be mitigated with the trail feature.
+    example: --movie-speed 0.25 makes the packet travel one quarter as far per unit of movie time as the default without changing the physics resolution.
+
+  --physics-step X
+    sets physicsStepLength, the maximum scene distance between physics/gravity recalculations. X must be greater than the renderer tolerance (0.000001). default: 0.01.
+    smaller values give smoother/more frequent gravitational bending calculations at the cost of more work.
+    this is deliberately separate from movie frame length, so a ray can travel a long visible distance in one frame while still bending through many smaller physics steps.
+    this option also affects ordinary --steps propagation.
+
+  --trail-fade X
+    sets movieTrailFade, a visualization-only fade factor in [0,1). default: 0.0.
+    0 disables the trail effect. values closer to 1 keep old ray segments visible for longer, while smaller positive values make the trail fade out more quickly.
+    this does not change ray energy or physics; it only fades previously rendered movie-frame pixels before the new frame is drawn. after the last ray dies, movie mode keeps updating until the trail is no longer visible. this option only matters in GUI movie mode.
+    example: --trail-fade 0.85 leaves a clearly visible fading path behind the photon packet.
+
+  --gui-rays N
+    sets how many initial rays are created in GUI mode. N must be a positive integer. Samples still controls the final render.
+    when --movie is enabled, N cannot exceed 10000.
+
+  --noWalls
+    disables wall collisions. a ray is drawn up to the wall and then terminated.
+
+  --scatter-retention X
+    sets the fraction of RGB energy kept after a scattering collision.
+    X must be in [0,1]. default: 0.7.
+    example: --scatter-retention 0.5 keeps half of the ray energy after each scatter.
+
+  --min-intensity X
+    stops a ray once all three of its RGB channels are below X.
+    X must be in [0,1]. default: 0, which disables this cutoff.
+    example: --min-intensity 0.01 removes rays once their strongest remaining channel is below 1%.
+
+Example:
+  ./spookyLights 8 0.4 0.01 0.01 5000 scene.txt --movie --objects --noWalls --gui-rays 2000 --frame-time 0.02 --movie-speed 0.5 --physics-step 0.005 --trail-fade 0.85 --scatter-retention 0.6 --min-intensity 0.01
+
+Scene-file additions / extended behaviour:
+
+  black_hole X Y MASS
+    adds a black hole at (X,Y). MASS controls the strength of gravitational lensing.
+    adding a black hole automatically enables the stepwise calculations needed for gravity.
+    example:
+      black_hole 0.0 0.0 8e25
+
+  circle X Y RADIUS REFRACTIVE_INDEX R G B MATERIAL_TYPE
+    circles already use the regular scene format, but their RGB values now act as material colours.
+    ray RGB values are multiplied by the material RGB when they interact with the circle.
+    MATERIAL_TYPE values are:
+      0 = mirror
+      1 = scatter
+      2 = refractive / transparent
+    example:
+      circle 0.0 0.0 0.55 1.50 1.0 0.05 0.8 2
+
+  light X Y dX dY R G B LIGHT_TYPE
+    RGB light values are also used to build the source spectral power distribution when dispersion is enabled.
+    LIGHT_TYPE values are:
+      0 = point light (direction is ignored)
+      1 = directional / laser light
+    example:
+      light -1.7 -0.25 1.0 0.0 1.0 1.0 1.0 1
+
+Dispersion note:
+  the positional dispersion argument scales wavelength-dependent refraction. 0 keeps the original
+  non-dispersive refractive index, while larger values increase colour separation.

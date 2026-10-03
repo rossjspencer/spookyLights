@@ -1,0 +1,8 @@
+# five coloured lasers crossing a gentle black hole field
+light -1.70 -0.55 1.0 0.0 1.00 0.25 0.45 1
+light -1.70 -0.28 1.0 0.0 1.00 0.55 0.18 1
+light -1.70  0.00 1.0 0.0 0.35 1.00 0.35 1
+light -1.70  0.28 1.0 0.0 0.20 0.85 1.00 1
+light -1.70  0.55 1.0 0.0 0.45 0.35 1.00 1
+
+black_hole 0.15 0.00 4e25

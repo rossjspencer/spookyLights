@@ -1,0 +1,8 @@
+# white laser slightly above center
+light  -1.75   -0.20    1.0   0.0    1.0 1.0 1.0    1
+
+# clear refractive circle
+circle -0.55    0.00    0.50  1.70   1.0 1.0 1.0    2
+
+# black hole farther down
+black_hole  0.90  -0.2  6e25
